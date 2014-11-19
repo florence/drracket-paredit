@@ -10,5 +10,7 @@
 
 (define deps
   '("base" "gui-lib" "drracket-plugin-lib"))
+(define build-deps
+  '("rackunit-lib"))
 
 (define single-collection "paredit")
