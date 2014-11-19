@@ -7,20 +7,23 @@
     #:datum-literals (=>)
     [(test before after (op ...)
            => result)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (test-begin
         (define t (do-test-ops before after (op ...)))
-        (check-equal? (send t get-text)
-                      result)))]
+        #,(syntax/loc stx
+            (check-equal? (send t get-text)
+                          result))))]
     [(test before after (op ...)
            => result-left:str result-right)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (test-begin
         (define t (do-test-ops before after (op ...)))
-        (check-equal? (send t get-text)
-                      (string-append result-left result-right))
-        (check-equal? (send t get-start-position)
-                      (string-length result-left))))]))
+        #,(syntax/loc stx
+            (check-equal? (send t get-text)
+                          (string-append result-left result-right)))
+        #,(syntax/loc stx
+            (check-equal? (send t get-start-position)
+                          (string-length result-left)))))]))
 
 (define-syntax (do-test-ops stx)
   (syntax-parse stx
