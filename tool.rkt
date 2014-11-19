@@ -11,7 +11,6 @@
 (define phase1 void)
 (define phase2 void)
 
-
 (define paredit-frame-mixin
   (lambda (%)
     (class % (drracket:unit:frame<%>)
@@ -27,6 +26,7 @@
              [checked (send (get-defintions-text) check-paredit?)]))
       
       (super-new))))
+#;
 (define paredit-text-mixin
   (lambda (%)
     (class* % ()
@@ -42,24 +42,27 @@
         (preferences:set pref-key paredit?))
       (define/public-final (check-paredit?) paredit?)
 
-
+      (define current-evt (make-parameter #f))
       (define/override (on-local-char evt)
-        (cond [paredit?
-               (define key (send evt get-key-code))
-               (cond
-                [(char-pair-right? key) =>
-                 (lambda (p)
-                   (insert-pair . p))]
-                [(char-pair-left? key) =>
-                 ;;todo paren navigation
-                 void]
-                [else
-                 (match key
-                   #;
-                   [#\backspace
-                    (do-balanced-delete)]
-                   [else (super on-local-char evt)])])]
-              [else (super on-local-char evt)]))
+        (parameterize ([current-evt evt])
+          (cond [paredit?
+                 (define key (send evt get-key-code))
+                 (cond
+                  [(char-pair-right? key) =>
+                   (lambda (p)
+                     (insert-pair . p))]
+                  [(char-pair-left? key) =>
+                   ;;todo paren navigation
+                   void]
+                  [else
+                   (match key
+                     [#\backspace
+                      (do-balanced-delete)]
+                     [else (fallback-local-char)])])]
+                [else (fallback-local-char)])))
+      
+      (define/private (fallback-local-char)
+        (super on-local-char (current-evt)))
 
       (define-syntax char
         (lambda (stx)
@@ -67,18 +70,38 @@
             [(_ s:str)
              (with-syntax ([c (string-ref (syntax-e #'s) 0)])
                #'c)])))
-      
 
       (define/private (insert-pair left right)
         (define-values (start _end) (get-current-line-start-end))
         (send this insert left start)
         (send this insert right (add1 start)))
-        
+      
+      (define/private (do-balanced-delete)
+        (cond
+         [(in-string?) 
+          (if (before-after-pair? '((#\" #\")))
+              (matching-delete)
+              (fallback-local-char))]
+         [(in-comment?) (fallback-local-char)]
+         [(before-after-pair?) 
+          (matching-delete)]
+         [else (fallback-local-char)])) 
+      
+      (define/private (in-string?)
+        ...)
+      (define/private (in-comment?)
+        ...)
+      (define/private (before-after-pair? [set char-pairs])
+        ...)
+      (define/private (matching-delete) ...)
+      
       (define char-pairs
-        `((,(char "(") ,(char ")"))
-          (,(char "[") ,(char "]"))
-          (,(char "{") ,(char "}"))
-          (,(char "|") ,(char "|"))))
+        `((#\( #\))
+          (#\[ #\])
+          (#\{ #\})
+          (#\| #\|)
+          (#\" #\")))
+
       (define r-char-pairs
         (map reverse char-pairs))
       
@@ -100,4 +123,5 @@
 
 ;;setup 
 (preferences:set-default pref-key #t boolean?)
-(drracket:get/extend:extend-definitions-text paredit-text-mixin)
+#;(drracket:get/extend:extend-definitions-text paredit-text-mixin)
+
