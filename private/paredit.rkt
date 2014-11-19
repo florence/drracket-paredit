@@ -29,10 +29,7 @@
       (define/public (do-balanced-delete)
         (cond
          [(in-string?) 
-          (if (and (at-string-start?)
-                   (after-first-of-empty-pair? '((#\" #\"))))
-              (matching-delete)
-              (do-escaped-delete))]
+          (delete-from-in-string)]
          [(in-comment?) (delete-one-char)]
          [(after-first-of-empty-pair?) 
           (matching-delete)]
@@ -44,6 +41,17 @@
          [else (delete-one-char)])) 
 
       ;; ===== private functions =====
+      (define/private (delete-from-in-string)
+        (cond [(and (at-string-start?)
+                    (after-first-of-empty-pair? '((#\" #\"))))
+               (matching-delete)]
+              [(and (at-string-end?)
+                    (after-last-of-empty-pair? '((#\" #\"))))
+               (delete-one-char)
+               (delete-one-char)]
+              [(at-string-end?)
+               (move-position 'left)]
+              [else (do-escaped-delete)]))
       (define/private (insert-p left right)
         (define start (get-start-position))
         (insert left start)
@@ -67,6 +75,9 @@
       (define/private (at-string-start?)
         (define-values (start _end) (send this get-token-range (get-start-position)))
         (= start (sub1 (get-start-position))))
+      (define/private (at-string-end?)
+        (define-values (_start end) (send this get-token-range (get-start-position)))
+        (= end (get-start-position)))
       
       (define/private (do-escaped-delete)
         (define pos (- (get-start-position) 2))

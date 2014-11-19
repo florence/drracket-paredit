@@ -27,3 +27,5 @@
 ;; delete a from "a"
 (test "\"a" "\"" (do-balanced-delete)
       => "\"\"") 
+(test "\"a\"" "" (do-balanced-delete)
+      => "\"a" "\"")
