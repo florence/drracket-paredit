@@ -30,12 +30,17 @@
         (cond
          [(in-string?) 
           (if (and (at-string-start?)
-                   (before-after-pair? '((#\" #\"))))
+                   (after-first-of-empty-pair? '((#\" #\"))))
               (matching-delete)
-              (delete-one-char))]
+              (do-escaped-delete))]
          [(in-comment?) (delete-one-char)]
-         [(before-after-pair?) 
+         [(after-first-of-empty-pair?) 
           (matching-delete)]
+         [(after-last-of-empty-pair?)
+          (delete-one-char)
+          (delete-one-char)]
+         [(after-not-empty-pair?)
+          (move-position 'left)]
          [else (delete-one-char)])) 
 
       ;; ===== private functions =====
@@ -61,16 +66,41 @@
       ;; assumes (in-string?)
       (define/private (at-string-start?)
         (define-values (start _end) (send this get-token-range (get-start-position)))
-        (= start (get-start-position)))
+        (= start (sub1 (get-start-position))))
+      
+      (define/private (do-escaped-delete)
+        (define pos (- (get-start-position) 2))
+        (define l2 (send this get-character pos))
+        (cond [(not (eq? l2 #\\))
+               (delete-one-char)]
+              [(odd? (consecutive-escapes-from pos))
+               (delete-one-char)
+               (delete-one-char)]
+              [else (delete-one-char)]))
+      (define/private (consecutive-escapes-from pos)
+        (if (not (eq? (send this get-character pos) #\\))
+            0
+            (add1 (consecutive-escapes-from (sub1 pos)))))
 
-      (define/private (before-after-pair? [set char-pairs])
+      (define/private (after-first-of-empty-pair? [pairs char-pairs])
         (define pos (get-start-position))
         (define cleft (send this get-character (sub1 pos)))
         (define cright (send this get-character pos))
-        (for/or ([pair (in-list set)])
+        (matching-pair? cleft cright pairs))
+      (define/private (after-last-of-empty-pair? [pairs char-pairs])
+        (define pos (get-start-position))
+        (define cright (send this get-character (sub1 pos)))
+        (define cleft (send this get-character (- pos 2)))
+        (matching-pair? cleft cright pairs))
+      
+      (define/private (matching-pair? cleft cright pairs)
+        (for/or ([pair (in-list pairs)])
           (define-values (left right) (apply values pair))
           (and (eq? left cleft)
                (eq? right cright))))
+      (define/private (after-not-empty-pair?)
+        (define left (send this get-character (sub1 (get-start-position))))
+        (member left (flatten char-pairs)))
 
       (define/private (matching-delete) 
         (move-position 'right)

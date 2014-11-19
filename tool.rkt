@@ -2,7 +2,8 @@
 
 (require
  (for-syntax syntax/parse)
- racket/gui drracket/tool framework)
+ racket/gui drracket/tool framework
+ "private/paredit.rkt")
 
 (import drracket:tool^)
 (export drracket:tool-exports^)
@@ -29,5 +30,5 @@
 
 ;;setup 
 (preferences:set-default pref-key #t boolean?)
-#;(drracket:get/extend:extend-definitions-text paredit-text-mixin)
+(drracket:get/extend:extend-definitions-text paredit-text-mixin)
 
