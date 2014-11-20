@@ -16,6 +16,11 @@
                move-position)
 
       ;; ===== public functions =====
+      (define/override (get-keymaps)
+        (define k (new keymap:aug-keymap%))
+        (add-default-keys! k)
+        (list* k (super get-keymaps)))
+
       (define/public (insert-pair key)
         (cond [(in-string?)
                (insert/escape key)]
@@ -42,16 +47,17 @@
 
       ;; ===== private functions =====
       (define/private (delete-from-in-string)
-        (cond [(and (at-string-start?)
-                    (after-first-of-empty-pair? '((#\" #\"))))
+        (cond [(and (in-empty-string?)
+                    (at-string-start?))
                (matching-delete)]
-              [(and (at-string-end?)
-                    (after-last-of-empty-pair? '((#\" #\"))))
+              [(and (in-empty-string?)
+                    (at-string-end?))
                (delete-one-char)
                (delete-one-char)]
               [(at-string-end?)
                (move-position 'left)]
               [else (do-escaped-delete)]))
+
       (define/private (insert-p left right)
         (define start (get-start-position))
         (insert left start)
@@ -64,17 +70,28 @@
       
       (define/private (in-string?)
         (eq? 'string (classify-here)))
+      
+
       (define/private (in-comment?)
         (define type (classify-here))
         (or (eq? 'comment type)
             (eq? 'sexp-comment type)))
+
       (define/private (classify-here)
         (send this classify-position (get-start-position)))
       
+      
+      ;; assumes (in-string?)
+      (define/private (in-empty-string?)
+        (define-values (start end) (send this get-token-range (get-start-position)))
+        (= 2 (- end start)))
+
       ;; assumes (in-string?)
       (define/private (at-string-start?)
         (define-values (start _end) (send this get-token-range (get-start-position)))
         (= start (sub1 (get-start-position))))
+
+      ;; assumes (in-string?)
       (define/private (at-string-end?)
         (define-values (_start end) (send this get-token-range (get-start-position)))
         (= end (get-start-position)))
@@ -88,6 +105,7 @@
                (delete-one-char)
                (delete-one-char)]
               [else (delete-one-char)]))
+
       (define/private (consecutive-escapes-from pos)
         (if (not (eq? (send this get-character pos) #\\))
             0
@@ -98,6 +116,7 @@
         (define cleft (send this get-character (sub1 pos)))
         (define cright (send this get-character pos))
         (matching-pair? cleft cright pairs))
+
       (define/private (after-last-of-empty-pair? [pairs char-pairs])
         (define pos (get-start-position))
         (define cright (send this get-character (sub1 pos)))
@@ -109,6 +128,7 @@
           (define-values (left right) (apply values pair))
           (and (eq? left cleft)
                (eq? right cright))))
+
       (define/private (after-not-empty-pair?)
         (define left (send this get-character (sub1 (get-start-position))))
         (member left (flatten char-pairs)))
@@ -134,10 +154,12 @@
       
       (define (char-pair-right? s)
         (assoc s char-pairs))
+
       (define (char-pair-left? s)
         (assoc s r-char-pairs))
       
       (define escape? (seteq #\"))
+
       (define (needs-escaping? k)
         (set-member? escape? k)) 
       
@@ -146,9 +168,11 @@
 (define (add-default-keys! k)
   (define (insert-pair in e)
     (send in insert-pair (send e get-key-code)))
+
   (define (add name key func)
     (send k add-function name func)
     (send k map-function key name))
+
   (add "paren" "(" insert-pair)
   (add "quote" "\"" insert-pair)
   (add "bracket" "[" insert-pair)
